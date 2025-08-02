@@ -27,8 +27,6 @@ const inventoryListDatalist = document.getElementById('inventoryList');
 const inventoryItemsContainer = document.getElementById('inventoryItemsContainer');
 const addInventoryItemBtn = document.getElementById('addInventoryItem');
 const customerTypeSelect = document.getElementById('customerType');
-const visitEntriesContainer = document.getElementById('visitEntriesContainer');
-const addVisitEntryBtn = document.getElementById('addVisitEntry');
 
 function showSuccessMessage() {
   Swal.fire({
@@ -67,6 +65,20 @@ function generateInventoryID() {
   const timestamp = new Date().getTime();
   const randomString = Math.random().toString(36).substring(2, 8);
   return `INV-${timestamp}-${randomString}`;
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatTime(date) {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
 }
 
 function formatTimestamp(date) {
@@ -113,9 +125,7 @@ async function loadAllData() {
     visitPurposes = visitPurposesData;
     visitTypes = visitTypesData;
 
-    // ⛔️ تم إصلاح هذا السطر ليعمل مع صيغة ملفك `sales_representatives.json`
     populateSelect(salesRepNameSelect, salesRepresentatives);
-    
     populateCustomerDatalist();
     populateSelect(visitTypeSelect, visitTypes, 'Visit_Type_Name_AR', 'Visit_Type_Name_AR');
     populateSelect(visitPurposeSelect, visitPurposes, 'Visit_Purpose_AR', 'Visit_Purpose_AR');
@@ -133,11 +143,9 @@ function populateSelect(selectElement, dataArray, valueKey, textKey) {
   dataArray.forEach(item => {
     const option = document.createElement('option');
     if (valueKey && textKey) {
-      // إذا كانت البيانات كائنات
       option.value = item[valueKey];
       option.textContent = item[textKey];
     } else {
-      // إذا كانت البيانات نصوصًا بسيطة
       option.value = item;
       option.textContent = item;
     }
@@ -288,7 +296,10 @@ async function handleSubmit(event) {
           'Package_Type': product.Package_Type,
           'Unit_Size': product.Unit_Size,
           'Unit_Label': item.querySelector('[name="Unit_Label"]').value,
-          'Notes': ''
+          // الأعمدة الجديدة التي أضفتها
+          'Notes': item.querySelector('[name="Inventory_Notes"]') ? item.querySelector('[name="Inventory_Notes"]').value : '',
+          'Product_Condition': item.querySelector('[name="Product_Condition"]') ? item.querySelector('[name="Product_Condition"]').value : '',
+          'Merge_Note': item.querySelector('[name="Merge_Note"]') ? item.querySelector('[name="Merge_Note"]').value : ''
         };
         inventoryData.push(itemData);
       }
@@ -324,18 +335,24 @@ async function handleSubmit(event) {
 
     const dataToSubmit = {
       'Visit_ID': generateVisitID(),
-      'Timestamp': formatTimestamp(now),
-      'Entry_User_Name': formData.get('Entry_User_Name'),
-      'Sales_Rep_Name_AR': formData.get('Sales_Rep_Name_AR'),
-      'Customer_Name_AR': formData.get('Customer_Name_AR'),
       'Customer_Code': customersMain.find(c => c.Customer_Name_AR === formData.get('Customer_Name_AR'))?.Customer_Code || '',
-      'Visit_Type_Name_AR': selectedVisitType,
+      'Customer_Name_AR': formData.get('Customer_Name_AR'),
+      'Sales_Rep_Name_AR': formData.get('Sales_Rep_Name_AR'),
+      'Visit_Date': formatDate(now),
+      'Visit_Time': formatTime(now),
       'Visit_Purpose': formData.get('Visit_Purpose'),
       'Visit_Outcome': formData.get('Visit_Outcome'),
-      'Customer_Type': formData.get('Customer_Type'),
+      'Visit_Type_Name_AR': selectedVisitType,
       'Available_Products_Names': available.join(', '),
       'Unavailable_Products_Names': unavailable.join(', '),
-      'Notes': formData.get('Notes') || ''
+      'Entry_User_Name': formData.get('Entry_User_Name'),
+      'Timestamp': formatTimestamp(now),
+      'Customer_Type': formData.get('Customer_Type'),
+      'Notes': formData.get('Notes') || '',
+      // الأعمدة الجديدة التي أضفتها
+      'Previous_Visits_Summary': '',
+      'Visit_Group_ID': '',
+      'Visit_Ref_Note': ''
     };
 
     payload = {
@@ -347,7 +364,6 @@ async function handleSubmit(event) {
   try {
     const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: 'POST',
-      // ⛔️ تم تغيير `no-cors` إلى `cors` للسماح بقراءة الاستجابة
       mode: 'cors', 
       headers: {
         'Content-Type': 'application/json',
@@ -365,7 +381,7 @@ async function handleSubmit(event) {
       addInitialInventoryItem();
       toggleVisitSections(visitTypeSelect.value);
     } else {
-      showErrorMessage('حدث خطأ في تطبيق Google Apps Script.');
+      showErrorMessage('حدث خطأ في تطبيق Google Apps Script: ' + result.error);
     }
   } catch (error) {
     console.error('فشل الإرسال:', error);
