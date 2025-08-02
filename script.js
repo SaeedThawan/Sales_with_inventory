@@ -26,474 +26,371 @@ const loadingSpinner = document.getElementById('loadingSpinner');
 const normalVisitRelatedFieldsDiv = document.getElementById('normalVisitRelatedFields');
 const normalProductSectionDiv = document.getElementById('normalProductSection');
 const inventorySectionDiv = document.getElementById('inventorySection');
-const inventoryListDatalist = document.getElementById('inventoryList'); 
 const inventoryItemsContainer = document.getElementById('inventoryItemsContainer');
 const addInventoryItemBtn = document.getElementById('addInventoryItem');
-const customerTypeSelect = document.getElementById('customerType'); 
 
 // ---------------------------------------------------
-// وظائف المساعدة (Helper Functions)
+// الدوال المساعدة
 // ---------------------------------------------------
 
-// عرض رسالة نجاح باستخدام SweetAlert2
-function showSuccessMessage() {
-  Swal.fire({
-    title: '✅ تم الإرسال!',
-    text: 'تم إرسال النموذج بنجاح.',
-    icon: 'success',
-    confirmButtonText: 'ممتاز'
-  });
-}
-
-// عرض رسالة خطأ باستخدام SweetAlert2
-function showErrorMessage(message) {
-  Swal.fire({
-    title: '❌ فشل الإرسال',
-    text: message || 'حدث خطأ أثناء إرسال النموذج. حاول مجددًا.',
-    icon: 'error',
-    confirmButtonText: 'موافق'
-  });
-}
-
-// عرض رسالة تحذير باستخدام SweetAlert2
-function showWarningMessage(message) {
-  Swal.fire({
-    title: '⚠️ تنبيه',
-    text: message,
-    icon: 'warning',
-    confirmButtonText: 'موافق'
-  });
-}
-
-// توليد معرف فريد للزيارة
-function generateVisitID() {
-  const timestamp = new Date().getTime();
-  const randomString = Math.random().toString(36).substring(2, 8);
-  return `VISIT-${timestamp}-${randomString}`;
-}
-
-// توليد معرف فريد لمنتج الجرد
-function generateInventoryID() {
-  const timestamp = new Date().getTime();
-  const randomString = Math.random().toString(36).substring(2, 8);
-  return `INV-${timestamp}-${randomString}`;
-}
-
-// تنسيق التاريخ
-function formatDate(date) {
-  return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-// تنسيق الوقت
-function formatTime(date) {
-  return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-}
-
-// تنسيق الطابع الزمني (تاريخ ووقت)
-function formatTimestamp(date) {
-  return date.toLocaleString('ar-SA', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-}
-
-// ---------------------------------------------------
-// وظائف تحميل وتعبئة البيانات الأولية
-// ---------------------------------------------------
-
-// جلب بيانات JSON من مسار معين
-async function fetchJsonData(url) {
+// دالة لجلب بيانات JSON
+async function fetchJsonData(filename) {
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await fetch(filename);
+    if (!response.ok) {
+      throw new Error(`فشل في تحميل الملف: ${filename}`);
+    }
     return await response.json();
   } catch (error) {
-    console.error(`خطأ في تحميل ${url}:`, error);
-    showErrorMessage(`فشل تحميل البيانات من ${url}`);
-    return [];
-  }
-}
-
-// تحميل جميع البيانات المطلوبة عند بدء تشغيل الصفحة
-async function loadAllData() {
-  [
-    productsData,
-    inventoryProductsData,
-    salesRepresentatives,
-    customersMain,
-    visitOutcomes,
-    visitPurposes,
-    visitTypes
-  ] = await Promise.all([
-    fetchJsonData('products.json'),
-    fetchJsonData('inventory_products.json'),
-    fetchJsonData('sales_representatives.json'),
-    fetchJsonData('customers_main.json'),
-    fetchJsonData('visit_outcomes.json'),
-    fetchJsonData('visit_purposes.json'),
-    fetchJsonData('visit_types.json')
-  ]);
-  
-  // تعبئة القوائم المنسدلة والـ datalists
-  populateSelect(salesRepNameSelect, salesRepresentatives, 'Sales_Rep_Name_AR', 'Sales_Rep_Name_AR');
-  populateCustomerDatalist();
-  populateSelect(visitTypeSelect, visitTypes, 'Visit_Type_Name_AR', 'Visit_Type_Name_AR');
-  populateSelect(visitPurposeSelect, visitPurposes);
-  populateSelect(visitOutcomeSelect, visitOutcomes);
-  setupProductCategories(); // إعداد فئات المنتجات للزيارات العادية
-  populateInventoryDatalist(); // تعبئة الـ datalist لمنتجات الجرد
-}
-
-// تعبئة عنصر <select> ببيانات معينة
-function populateSelect(selectElement, dataArray, valueKey, textKey) {
-  // إبقاء الخيار الأول "اختر..." وحذف البقية
-  while (selectElement.children.length > 1) selectElement.removeChild(selectElement.lastChild);
-  dataArray.forEach(item => {
-    const option = document.createElement('option');
-    if (typeof item === 'object') {
-      option.value = item[valueKey];
-      option.textContent = item[textKey];
-    } else {
-      option.value = item;
-      option.textContent = item;
-    }
-    selectElement.appendChild(option);
-  });
-}
-
-// تعبئة الـ datalist الخاص بالعملاء
-function populateCustomerDatalist() {
-  customerListDatalist.innerHTML = '';
-  customersMain.forEach(customer => {
-    const option = document.createElement('option');
-    option.value = customer.Customer_Name_AR;
-    customerListDatalist.appendChild(option);
-  });
-}
-
-// تعبئة الـ datalist الوحيد لمنتجات الجرد
-function populateInventoryDatalist() {
-  inventoryListDatalist.innerHTML = ''; // مسح الخيارات السابقة
-  inventoryProductsData.forEach(product => {
-    const option = document.createElement('option');
-    option.value = product.Product_Name_AR;
-    // تخزين جميع تفاصيل المنتج في dataset لسهولة استعادتها
-    for (const key in product) {
-        if (Object.hasOwnProperty.call(product, key)) {
-            // تحويل المفتاح إلى camelCase ليتوافق مع dataset
-            const camelCaseKey = key.replace(/_(\w)/g, (match, p1) => p1.toUpperCase());
-            option.dataset[camelCaseKey] = product[key];
-        }
-    }
-    inventoryListDatalist.appendChild(option);
-  });
-}
-
-// ---------------------------------------------------
-// وظائف إدارة المنتجات للزيارات العادية
-// ---------------------------------------------------
-
-let productCategories = {};
-// إعداد فئات المنتجات ومربعات الاختيار الخاصة بها
-function setupProductCategories() {
-  productCategoriesDiv.innerHTML = '';
-  productCategories = {}; // إعادة تعيين الفئات
-  productsData.forEach(product => {
-    if (!productCategories[product.Category]) productCategories[product.Category] = [];
-    productCategories[product.Category].push(product);
-  });
-
-  for (const category in productCategories) {
-    const div = document.createElement('div');
-    div.className = 'flex items-center';
-    div.innerHTML = `
-      <input type="checkbox" id="cat-${category.replace(/\s/g, '-')}" value="${category}" class="h-5 w-5 text-indigo-600 border-gray-300 rounded cursor-pointer">
-      <label for="cat-${category.replace(/\s/g, '-')}" class="ml-2 text-sm font-medium text-gray-700">${category}</label>
-    `;
-    productCategoriesDiv.appendChild(div);
-    // ربط حدث التغيير لإظهار/إخفاء المنتجات
-    div.querySelector('input[type="checkbox"]').addEventListener('change', e => toggleProductsDisplay(e.target.value, e.target.checked));
-  }
-}
-
-// إظهار أو إخفاء المنتجات بناءً على اختيار الفئة
-function toggleProductsDisplay(category, isChecked) {
-  const categoryProducts = productCategories[category];
-  if (!categoryProducts) return;
-
-  if (isChecked) {
-    categoryProducts.forEach(product => {
-      const uniqueId = `product-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`; // معرف فريد لكل منتج
-      const productDiv = document.createElement('div');
-      productDiv.id = uniqueId;
-      productDiv.className = 'product-item border border-gray-300 p-3 rounded-lg flex justify-between items-center';
-      productDiv.setAttribute('data-category', category); // لتسهيل إزالتها لاحقاً
-      productDiv.innerHTML = `
-        <label class="font-medium text-gray-800">${product.Product_Name_AR}</label>
-        <div class="radio-group flex space-x-4 space-x-reverse">
-          <label class="inline-flex items-center">
-            <input type="radio" name="status-${uniqueId}" value="متوفر" class="form-radio text-green-600" required> 
-            <span class="mr-2">متوفر</span>
-          </label>
-          <label class="inline-flex items-center">
-            <input type="radio" name="status-${uniqueId}" value="غير متوفر" class="form-radio text-red-600" required> 
-            <span class="mr-2">غير متوفر</span>
-          </label>
-        </div>
-      `;
-      productsDisplayDiv.appendChild(productDiv);
+    console.error(error);
+    Swal.fire({
+      icon: 'error',
+      title: 'خطأ في تحميل البيانات',
+      text: `حدث خطأ أثناء تحميل ${filename}. يرجى التحقق من الملفات.`,
+      confirmButtonText: 'حسنًا'
     });
-  } else {
-    // إزالة جميع المنتجات التي تنتمي للفئة الملغاة
-    const toRemove = productsDisplayDiv.querySelectorAll(`[data-category="${category}"]`);
-    toRemove.forEach(div => div.remove());
+    return []; // إرجاع مصفوفة فارغة لتجنب إيقاف الكود
   }
 }
 
-// ---------------------------------------------------
-// وظائف التحقق من الصحة (Validation)
-// ---------------------------------------------------
-
-// التحقق من تحديد حالة توفر المنتجات في الزيارات العادية
-function validateProductStatuses() {
-  // إذا كان قسم المنتجات مخفيًا، فلا داعي للتحقق
-  if (normalProductSectionDiv.classList.contains('hidden')) {
-    return true; 
-  }
-  
-  const items = productsDisplayDiv.querySelectorAll('.product-item');
-  if (items.length === 0) {
-    // إذا لم يتم اختيار أي فئات منتجات، يعتبر صحيحاً إذا لم يكن هناك منتجات لعرضها
-    return true; 
+// دالة لتعبئة القوائم المنسدلة
+function populateSelect(selectElement, data, valueKey, textKey) {
+  // إزالة الخيارات السابقة باستثناء الخيار الأول (اختر...)
+  while (selectElement.options.length > 1) {
+    selectElement.remove(1);
   }
 
-  let allValid = true;
-  items.forEach(div => {
-    const radios = div.querySelectorAll('input[type="radio"]');
-    const checked = [...radios].some(r => r.checked); // هل تم تحديد أي خيار راديو
-    if (!checked) {
-      allValid = false;
-      div.classList.add('border-red-500', 'ring-2', 'ring-red-500'); // تمييز الحقل غير الصالح
-      div.scrollIntoView({ behavior: 'smooth', block: 'center' }); // التمرير إلى الحقل
-      setTimeout(() => div.classList.remove('border-red-500', 'ring-2', 'ring-red-500'), 3000); // إزالة التمييز بعد 3 ثوانٍ
-    }
+  if (Array.isArray(data)) {
+    data.forEach(item => {
+      const option = document.createElement('option');
+      if (valueKey && textKey) {
+        // إذا كانت البيانات كائنات
+        option.value = item[valueKey];
+        option.textContent = item[textKey];
+      } else {
+        // إذا كانت البيانات نصوصًا بسيطة
+        option.value = item;
+        option.textContent = item;
+      }
+      selectElement.appendChild(option);
+    });
+  }
+}
+
+// دالة لملء قائمة الاقتراحات (datalist)
+function populateDatalist(datalistElement, data, key) {
+  // إزالة الخيارات السابقة
+  datalistElement.innerHTML = '';
+
+  if (Array.isArray(data)) {
+    data.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item[key];
+      datalistElement.appendChild(option);
+    });
+  }
+}
+
+// دالة لإظهار رسالة تحذير
+function showWarningMessage(message) {
+  Swal.fire({
+    icon: 'warning',
+    title: 'تنبيه',
+    text: message,
+    confirmButtonText: 'حسنًا'
   });
-
-  if (!allValid) {
-    showWarningMessage('يرجى تحديد حالة التوفر لكل المنتجات الظاهرة.');
-  }
-
-  return allValid;
 }
 
-// **تم إزالة دالة validateInventoryItems() لأنها لم تعد مطلوبة**
+// دالة لإظهار/إخفاء أقسام النموذج بناءً على نوع الزيارة
+function toggleVisitSections(visitType) {
+  // إخفاء جميع الأقسام في البداية
+  normalVisitRelatedFieldsDiv.classList.add('hidden');
+  inventorySectionDiv.classList.add('hidden');
+
+  if (visitType === 'جرد استثنائي') {
+    inventorySectionDiv.classList.remove('hidden');
+  } else {
+    normalVisitRelatedFieldsDiv.classList.remove('hidden');
+  }
+}
+
+// دالة لإعداد أقسام المنتجات
+function setupProductCategories(data) {
+  const categories = new Set(data.map(product => product.Category));
+  productCategoriesDiv.innerHTML = '';
+  categories.forEach(category => {
+    const radioId = `category-${category.replace(/\s/g, '-')}`;
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'productCategory';
+    radio.id = radioId;
+    radio.value = category;
+    radio.classList.add('hidden');
+
+    const label = document.createElement('label');
+    label.htmlFor = radioId;
+    label.textContent = category;
+    label.classList.add('product-category-label');
+
+    productCategoriesDiv.appendChild(radio);
+    productCategoriesDiv.appendChild(label);
+
+    radio.addEventListener('change', () => {
+      toggleProductsDisplay(category);
+    });
+  });
+}
+
+
+// دالة لعرض المنتجات بناءً على الفئة
+function toggleProductsDisplay(category) {
+  productsDisplayDiv.innerHTML = '';
+  const filteredProducts = productsData.filter(p => p.Category === category);
+  filteredProducts.forEach(product => {
+    const productItem = document.createElement('div');
+    productItem.className = 'product-item';
+    productItem.innerHTML = `
+      <h3 class="font-bold">${product.Product_Name_AR}</h3>
+      <div class="product-status-options">
+        <label>
+          <input type="radio" name="status-${product.Product_Name_AR}" value="available" required>
+          متوفر
+        </label>
+        <label>
+          <input type="radio" name="status-${product.Product_Name_AR}" value="unavailable">
+          غير متوفر
+        </label>
+      </div>
+    `;
+    productsDisplayDiv.appendChild(productItem);
+  });
+}
+
+// دالة للتحقق من أن العميل موجود في القائمة
+function validateCustomer() {
+  const customerName = customerNameInput.value.trim();
+  const customerExists = customersMain.some(c => c.Customer_Name_AR === customerName);
+  if (!customerExists && customerName) {
+    showWarningMessage('الرجاء اختيار اسم العميل من القائمة المحددة.');
+    customerNameInput.value = '';
+    return false;
+  }
+  return true;
+}
 
 // ---------------------------------------------------
-// وظيفة معالجة إرسال النموذج (handleSubmit)
+// دالة إرسال النموذج
 // ---------------------------------------------------
 
 async function handleSubmit(event) {
-  event.preventDefault(); // منع الإرسال الافتراضي للنموذج
-  submitBtn.disabled = true; // تعطيل زر الإرسال
-  loadingSpinner.classList.remove('hidden'); // إظهار مؤشر التحميل
-
-  const formData = new FormData(visitForm);
-  const now = new Date();
-  const selectedVisitType = visitTypeSelect.value;
-  let payload = {}; // المتغير الذي سيحمل البيانات النهائية للإرسال
-
-  // التحقق من الحقول الإجبارية العامة للنموذج
-  // هذه التحققات تنطبق على الجميع قبل الدخول في منطق نوع الزيارة
-  if (!salesRepNameSelect.value || !customerNameInput.value || !visitTypeSelect.value) {
-      showWarningMessage('الرجاء تعبئة حقول "مندوب المبيعات", "اسم العميل", و "نوع الزيارة".');
-      submitBtn.disabled = false;
-      loadingSpinner.classList.add('hidden');
-      return;
-  }
-  if (selectedVisitType !== 'جرد استثنائي' && (!visitPurposeSelect.value || !visitOutcomeSelect.value || !customerTypeSelect.value)) {
-       showWarningMessage('الرجاء تعبئة حقول "الغرض من الزيارة", "نتيجة الزيارة", و "نوع العميل" للزيارات العادية.');
-       submitBtn.disabled = false;
-       loadingSpinner.classList.add('hidden');
-       return;
+  event.preventDefault();
+  
+  if (!validateCustomer()) {
+    return;
   }
 
+  // إخفاء زر الإرسال وإظهار السبينر
+  submitBtn.disabled = true;
+  loadingSpinner.classList.remove('hidden');
 
-  if (selectedVisitType === 'جرد استثنائي') {
-  // ✅ إرسال بيانات تجريبية ثابتة لاختبار التواصل مع Google Sheets
-  const payload = {
-    sheetName: 'Inventory_Logs',
-    data: [{
-      Inventory_ID: "TEST-123456",
-      Timestamp: formatTimestamp(new Date()),
-      Entry_User_Name: "سعيد",
-      Sales_Rep_Name_AR: "مندوب اختبار",
-      Customer_Name_AR: "عميل تجريبي",
-      Customer_Code: "C000",
-      Product_Name_AR: "منتج تجريبي",
-      Product_Code: "P000",
-      Quantity: 10,
-      Expiration_Date: "2025-12-31",
-      Category: "تجريبي",
-      Package_Type: "علبة",
-      Unit_Size: "100جم",
-      Unit_Label: "علبة",
-      Notes: "اختبار تجريبي"
-    }]
-  };
+  const form = event.target;
+  const formData = new FormData(form);
+  const visitType = formData.get('Visit_Type_Name_AR');
 
-  // إرسال البيانات باستخدام fetch
-  try {
-    const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+  const customerName = formData.get('Customer_Name_AR');
+  const customerCode = customersMain.find(c => c.Customer_Name_AR === customerName)?.Customer_Code;
 
-    // ✅ إذا لم يحدث خطأ في الشبكة، نعتبر الإرسال ناجحًا
-    showSuccessMessage();
-    visitForm.reset(); // إعادة تعيين النموذج
-    loadingSpinner.classList.add('hidden');
-    submitBtn.disabled = false;
+  if (visitType === 'جرد استثنائي') {
+    // معالجة بيانات الجرد
+    const inventoryItems = document.querySelectorAll('.inventory-item');
+    const inventoryData = [];
 
-  } catch (error) {
-    console.error('فشل الإرسال:', error);
-    showErrorMessage('حدث خطأ أثناء إرسال البيانات.');
-    loadingSpinner.classList.add('hidden');
-    submitBtn.disabled = false;
-  }
+    inventoryItems.forEach((item, index) => {
+      const productName = item.querySelector('[name="Inventory_Product_Name_AR"]').value;
+      const product = inventoryProductsData.find(p => p.Product_Name_AR === productName);
 
-  // إيقاف بقية المعالجة بعد الإرسال التجريبي
-  return;
-}
-
-    // التحقق من حالة توفر المنتجات
-    if (!validateProductStatuses()) {
-      submitBtn.disabled = false;
-      loadingSpinner.classList.add('hidden');
-      return;
-    }
-
-    // جمع بيانات الزيارة العادية
-    const dataToSubmit = {
-      Visit_ID: generateVisitID(),
-      Customer_Name_AR: formData.get('Customer_Name_AR'),
-      Customer_Code: customersMain.find(c => c.Customer_Name_AR === formData.get('Customer_Name_AR'))?.Customer_Code || '',
-      Sales_Rep_Name_AR: formData.get('Sales_Rep_Name_AR'),
-      Visit_Date: formatDate(now),
-      Visit_Time: formatTime(now),
-      Visit_Purpose: formData.get('Visit_Purpose'),
-      Visit_Outcome: formData.get('Visit_Outcome'),
-      Visit_Type_Name_AR: formData.get('Visit_Type_Name_AR'),
-      Entry_User_Name: formData.get('Entry_User_Name'),
-      Timestamp: formatTimestamp(now),
-      Customer_Type: formData.get('Customer_Type'),
-      Notes: formData.get('Notes') || ''
-    };
-
-    // جمع المنتجات المتوفرة وغير المتوفرة
-    const available = [], unavailable = [];
-    const items = productsDisplayDiv.querySelectorAll('.product-item');
-    items.forEach(div => {
-      const name = div.querySelector('label').textContent;
-      const selected = div.querySelector('input[type="radio"]:checked');
-      if (selected) {
-        selected.value === 'متوفر' ? available.push(name) : unavailable.push(name);
+      if (product) {
+        const itemData = {
+          'Inventory_ID': `INV-${Date.now()}-${index + 1}`,
+          'Timestamp': new Date().toISOString(),
+          'Entry_User_Name': formData.get('Entry_User_Name'),
+          'Sales_Rep_Name_AR': formData.get('Sales_Rep_Name_AR'),
+          'Customer_Name_AR': customerName,
+          'Customer_Code': customerCode,
+          'Product_Name_AR': productName,
+          'Product_Code': product.Product_Code,
+          'Quantity': item.querySelector('[name="Inventory_Quantity"]').value,
+          'Expiration_Date': item.querySelector('[name="Expiration_Date"]').value,
+          'Category': product.Category,
+          'Package_Type': product.Package_Type,
+          'Unit_Size': product.Unit_Size,
+          'Unit_Label': item.querySelector('[name="Unit_Label"]').value,
+          'Notes': ''
+        };
+        inventoryData.push(itemData);
       }
     });
 
-    dataToSubmit.Available_Products_Names = available.join(', ');
-    dataToSubmit.Unavailable_Products_Names = unavailable.join(', ');
-
-    // بناء الـ payload لبيانات الزيارات العادية
-    payload = {
-      sheetName: 'Visit_Logs',
-      data: [dataToSubmit] // البيانات يجب أن تكون ضمن مصفوفة
+    const payload = {
+      sheetName: 'Inventory_Logs',
+      data: inventoryData
     };
-  }
+    sendDataToGoogleSheets(payload);
 
+  } else {
+    // معالجة بيانات الزيارات العادية
+    const availableProducts = [];
+    const unavailableProducts = [];
+    document.querySelectorAll('.product-item').forEach(item => {
+      const productName = item.querySelector('h3').textContent;
+      const status = item.querySelector('input:checked')?.value;
+      if (status === 'available') {
+        availableProducts.push(productName);
+      } else if (status === 'unavailable') {
+        unavailableProducts.push(productName);
+      }
+    });
+
+    const visitData = {
+      'Visit_ID': `VISIT-${Date.now()}`,
+      'Timestamp': new Date().toISOString(),
+      'Entry_User_Name': formData.get('Entry_User_Name'),
+      'Sales_Rep_Name_AR': formData.get('Sales_Rep_Name_AR'),
+      'Customer_Name_AR': customerName,
+      'Customer_Code': customerCode,
+      'Visit_Type_Name_AR': visitType,
+      'Visit_Purpose': formData.get('Visit_Purpose'),
+      'Visit_Outcome': formData.get('Visit_Outcome'),
+      'Available_Products_Names': availableProducts.join(', '),
+      'Unavailable_Products_Names': unavailableProducts.join(', '),
+      'Notes': ''
+    };
+
+    const payload = {
+      sheetName: 'Visit_Logs',
+      data: [visitData]
+    };
+    sendDataToGoogleSheets(payload);
+  }
+}
+
+// دالة لإرسال البيانات إلى Google Apps Script
+async function sendDataToGoogleSheets(payload) {
   try {
-    // إرسال البيانات إلى Google Apps Script
     const response = await fetch(GOOGLE_SHEETS_WEB_APP_URL, {
       method: 'POST',
-      mode: 'no-cors', // مطلوب للتواصل مع Google Apps Script
+      mode: 'cors',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
 
-    // إذا لم يكن هناك خطأ في الشبكة، نفترض أن الإرسال ناجح بسبب 'no-cors'
-    showSuccessMessage();
-    visitForm.reset(); // إعادة تعيين النموذج
-    
-    // مسح المنتجات المختارة للزيارات العادية
-    productsDisplayDiv.innerHTML = '';
-    document.querySelectorAll('#productCategories input[type="checkbox"]').forEach(c => c.checked = false); 
-    
-    // مسح عناصر الجرد وإعادة إضافة العنصر الأولي فقط
-    inventoryItemsContainer.innerHTML = ''; 
-    addInitialInventoryItem(); 
-    
-    // إعادة ضبط الأقسام المرئية بناءً على نوع الزيارة الافتراضي بعد إعادة التعيين
-    toggleVisitSections(visitTypeSelect.value); 
+    if (!response.ok) {
+      throw new Error(`فشل إرسال البيانات: ${response.statusText}`);
+    }
 
+    const result = await response.json();
+    if (result.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'تم الإرسال بنجاح!',
+        text: 'تم إرسال البيانات بنجاح إلى جدول البيانات.',
+        confirmButtonText: 'حسنًا'
+      });
+      // إعادة تعيين النموذج بعد الإرسال
+      visitForm.reset();
+      // إعادة ضبط القوائم المنسدلة
+      loadAllData();
+      // إعادة ضبط أقسام الزيارة
+      toggleVisitSections(visitTypeSelect.value);
+    } else {
+      throw new Error('فشل في إرسال البيانات إلى جدول البيانات.');
+    }
   } catch (error) {
-    console.error('فشل الإرسال:', error);
-    showErrorMessage('حدث خطأ أثناء إرسال البيانات. حاول مرة أخرى.');
+    console.error('❌ خطأ في الإرسال:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'خطأ في الإرسال',
+      text: error.message,
+      confirmButtonText: 'حسنًا'
+    });
   } finally {
-    submitBtn.disabled = false; // تفعيل زر الإرسال
-    loadingSpinner.classList.add('hidden'); // إخفاء مؤشر التحميل
-  }
-
-// ---------------------------------------------------
-// وظائف إدارة الأقسام المرئية (Dynamic Sections)
-// ---------------------------------------------------
-
-// تبديل ظهور الأقسام بناءً على نوع الزيارة المحدد
-function toggleVisitSections(selectedType) {
-  if (selectedType === 'جرد استثنائي') {
-    normalVisitRelatedFieldsDiv.classList.add('hidden');
-    normalProductSectionDiv.classList.add('hidden');
-    inventorySectionDiv.classList.remove('hidden');
-
-    // إزالة خاصية 'required' من حقول الزيارة العادية
-    customerTypeSelect.removeAttribute('required');
-    visitPurposeSelect.removeAttribute('required');
-    visitOutcomeSelect.removeAttribute('required');
-
-
-  } else {
-    normalVisitRelatedFieldsDiv.classList.remove('hidden');
-    normalProductSectionDiv.classList.remove('hidden');
-    inventorySectionDiv.classList.add('hidden');
-
-    // إضافة خاصية 'required' لحقول الزيارة العادية
-    customerTypeSelect.setAttribute('required', 'required');
-    visitPurposeSelect.setAttribute('required', 'required');
-    visitOutcomeSelect.setAttribute('required', 'required');
-
-    // مسح عناصر الجرد وإعادة إضافة العنصر الأولي (في حال كان هناك عناصر أخرى)
-    inventoryItemsContainer.innerHTML = '';
-    addInitialInventoryItem(); 
+    // إظهار زر الإرسال وإخفاء السبينر
+    submitBtn.disabled = false;
+    loadingSpinner.classList.add('hidden');
   }
 }
 
 // ---------------------------------------------------
-// وظائف إدارة عناصر الجرد
+// تحميل البيانات عند بدء التشغيل
 // ---------------------------------------------------
 
-// إضافة قالب جديد لعنصر الجرد
+async function loadAllData() {
+  try {
+    const [
+      products,
+      inventoryProducts,
+      salesReps,
+      customers,
+      visitOutcomesData,
+      visitPurposesData,
+      visitTypesData
+    ] = await Promise.all([
+      fetchJsonData('products.json'),
+      fetchJsonData('inventory_products.json'),
+      fetchJsonData('sales_representatives.json'),
+      fetchJsonData('customers_main.json'),
+      fetchJsonData('visit_outcomes.json'),
+      fetchJsonData('visit_purposes.json'),
+      fetchJsonData('visit_types.json')
+    ]);
+
+    productsData = products;
+    inventoryProductsData = inventoryProducts;
+    salesRepresentatives = salesReps;
+    customersMain = customers;
+    visitOutcomes = visitOutcomesData;
+    visitPurposes = visitPurposesData;
+    visitTypes = visitTypesData;
+
+    // تعبئة القوائم المنسدلة وقائمة الاقتراحات
+    populateSelect(visitTypeSelect, visitTypes, 'Visit_Type_Name_AR', 'Visit_Type_Name_AR');
+    populateSelect(visitPurposeSelect, visitPurposes, 'Visit_Purpose_AR', 'Visit_Purpose_AR');
+    populateSelect(visitOutcomeSelect, visitOutcomes, 'Visit_Outcome_AR', 'Visit_Outcome_AR');
+    populateDatalist(customerListDatalist, customersMain, 'Customer_Name_AR');
+
+    // ⛔️ هذا هو السطر الذي تم تعديله ليناسب صيغة ملفك `sales_representatives.json`
+    populateSelect(salesRepNameSelect, salesRepresentatives);
+
+    // إعداد قسم المنتجات
+    setupProductCategories(productsData);
+
+    // تعبئة قائمة منتجات الجرد
+    populateSelect(document.querySelector('#inventoryItemsContainer select'), inventoryProductsData, 'Product_Name_AR', 'Product_Name_AR');
+
+  } catch (error) {
+    console.error('❌ فشل تحميل جميع البيانات:', error);
+  }
+}
+
+// ---------------------------------------------------
+// وظائف إدارة قسم الجرد
+// ---------------------------------------------------
+
 function addInventoryItem() {
   const template = `
-    <div class="inventory-item border border-yellow-200 p-4 rounded-lg bg-white relative">
+    <div class="inventory-item border p-4 rounded-lg mb-4 bg-gray-50 relative">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="form-group">
-          <label>البحث عن المنتج</label>
-          <input type="text" name="Inventory_Product_Name_AR" list="inventoryList" placeholder="ابحث..." />
+          <label>اسم المنتج</label>
+          <input type="text" name="Inventory_Product_Name_AR" list="inventoryProductList" placeholder="ابحث عن المنتج..." required />
+          <datalist id="inventoryProductList">
+            </datalist>
         </div>
         <div class="form-group">
           <label>الكمية</label>
-          <input type="number" name="Inventory_Quantity" min="0" placeholder="أدخل الكمية" />
+          <input type="number" name="Inventory_Quantity" min="1" placeholder="أدخل الكمية" required />
         </div>
         <div class="form-group">
           <label>تاريخ الانتهاء</label>
@@ -501,7 +398,7 @@ function addInventoryItem() {
         </div>
         <div class="form-group">
           <label>الوحدة</label>
-          <select name="Unit_Label">
+          <select name="Unit_Label" required>
             <option value="">اختر الوحدة</option>
             <option value="علبة">علبة</option>
             <option value="شد">شد</option>
@@ -514,24 +411,28 @@ function addInventoryItem() {
   `;
   const newInventoryItem = document.createRange().createContextualFragment(template);
   inventoryItemsContainer.appendChild(newInventoryItem);
+
+  const newSelect = inventoryItemsContainer.lastElementChild.querySelector('input');
+  // تعبئة قائمة الاقتراحات للمنتج الجديد
+  if (inventoryProductsData.length > 0) {
+    newSelect.setAttribute('list', 'inventoryProductList');
+    populateDatalist(document.getElementById('inventoryProductList'), inventoryProductsData, 'Product_Name_AR');
+  }
 }
 
-// إضافة عنصر الجرد الأولي عند تحميل الصفحة أو إعادة التعيين
 function addInitialInventoryItem() {
-  // Always ensure at least one inventory item is present when this function is called
-  // First, clear existing items to ensure proper state after reset
-  inventoryItemsContainer.innerHTML = ''; 
-
   const template = `
-    <div class="inventory-item border border-yellow-200 p-4 rounded-lg bg-white relative">
+    <div class="inventory-item border p-4 rounded-lg mb-4 bg-gray-50 relative">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="form-group">
-          <label>البحث عن المنتج</label>
-          <input type="text" name="Inventory_Product_Name_AR" list="inventoryList" placeholder="ابحث..." />
+          <label>اسم المنتج</label>
+          <input type="text" name="Inventory_Product_Name_AR" list="inventoryProductList" placeholder="ابحث عن المنتج..." required />
+          <datalist id="inventoryProductList">
+            </datalist>
         </div>
         <div class="form-group">
           <label>الكمية</label>
-          <input type="number" name="Inventory_Quantity" min="0" placeholder="أدخل الكمية" />
+          <input type="number" name="Inventory_Quantity" min="1" placeholder="أدخل الكمية" required />
         </div>
         <div class="form-group">
           <label>تاريخ الانتهاء</label>
@@ -539,7 +440,7 @@ function addInitialInventoryItem() {
         </div>
         <div class="form-group">
           <label>الوحدة</label>
-          <select name="Unit_Label">
+          <select name="Unit_Label" required>
             <option value="">اختر الوحدة</option>
             <option value="علبة">علبة</option>
             <option value="شد">شد</option>
@@ -584,7 +485,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // استدعاء دالة تبديل الأقسام عند تحميل الصفحة لأول مرة 
-  // لضمان ظهور القسم الصحيح بناءً على القيمة الافتراضية
-  toggleVisitSections(visitTypeSelect.value); 
 });
