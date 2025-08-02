@@ -296,10 +296,9 @@ async function handleSubmit(event) {
           'Package_Type': product.Package_Type,
           'Unit_Size': product.Unit_Size,
           'Unit_Label': item.querySelector('[name="Unit_Label"]').value,
-          // الأعمدة الجديدة التي أضفتها
-          'Notes': item.querySelector('[name="Inventory_Notes"]') ? item.querySelector('[name="Inventory_Notes"]').value : '',
-          'Product_Condition': item.querySelector('[name="Product_Condition"]') ? item.querySelector('[name="Product_Condition"]').value : '',
-          'Merge_Note': item.querySelector('[name="Merge_Note"]') ? item.querySelector('[name="Merge_Note"]').value : ''
+          'Notes': '',
+          'Product_Condition': '',
+          'Merge_Note': ''
         };
         inventoryData.push(itemData);
       }
@@ -349,7 +348,6 @@ async function handleSubmit(event) {
       'Timestamp': formatTimestamp(now),
       'Customer_Type': formData.get('Customer_Type'),
       'Notes': formData.get('Notes') || '',
-      // الأعمدة الجديدة التي أضفتها
       'Previous_Visits_Summary': '',
       'Visit_Group_ID': '',
       'Visit_Ref_Note': ''
