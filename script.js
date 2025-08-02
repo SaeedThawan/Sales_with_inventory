@@ -1,4 +1,4 @@
-const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbym4rVEUWd0xkp9JglZNkZp6Hse6IxGSkHgqqKsi05GJhwe2AD95Z1-bGCv7dhWMLBqXQ/exec'; // تأكد أن هذا الرابط هو الصحيح لتطبيق الويب الخاص بك
+const GOOGLE_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw2Qm1ErufxKqBZbLmQ3FKCI4wEUkqET0dGSzLjY3Se7p_wnkFzuMEBTpMSdPp1aKox/exec'; // تأكد أن هذا الرابط هو الصحيح لتطبيق الويب الخاص بك
 
 // تعريف المتغيرات لتخزين البيانات المحملة
 let productsData = [];
@@ -587,4 +587,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // استدعاء دالة تبديل الأقسام عند تحميل الصفحة لأول مرة 
   // لضمان ظهور القسم الصحيح بناءً على القيمة الافتراضية
   toggleVisitSections(visitTypeSelect.value); 
+
 });
