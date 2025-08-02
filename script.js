@@ -587,5 +587,4 @@ document.addEventListener('DOMContentLoaded', () => {
   // استدعاء دالة تبديل الأقسام عند تحميل الصفحة لأول مرة 
   // لضمان ظهور القسم الصحيح بناءً على القيمة الافتراضية
   toggleVisitSections(visitTypeSelect.value); 
-
 });
